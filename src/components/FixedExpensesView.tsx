@@ -52,6 +52,18 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const formatAmountMask = (rawValue: string): string => {
+    const clean = rawValue.replace(/\D/g, '');
+    if (!clean) return '';
+    const num = parseInt(clean, 10);
+    if (isNaN(num) || num === 0) return '';
+    const valueInCent = num / 100;
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(valueInCent);
+  };
+
   // Find user's active family group
   const activeGroup = useMemo(() => {
     return familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
@@ -101,7 +113,8 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
       return;
     }
 
-    const parsedAmount = parseFloat(amount.replace(',', '.'));
+    const cleanAmount = amount.replace(/\./g, '').replace(',', '.');
+    const parsedAmount = parseFloat(cleanAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setError('Insira um valor numérico válido maior que zero.');
       return;
@@ -251,8 +264,9 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
                   <input
                     id="fixed-expense-amount-input"
                     type="text"
+                    inputMode="numeric"
                     value={amount}
-                    onChange={e => setAmount(e.target.value)}
+                    onChange={e => setAmount(formatAmountMask(e.target.value))}
                     placeholder="0,00"
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/50 focus:bg-white border border-gray-200 focus:border-blue-500 rounded-xl text-gray-900 text-sm font-bold transition-all focus:ring-2 focus:ring-blue-500/10 outline-none"
                     required

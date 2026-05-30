@@ -32,6 +32,18 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10)); // Default to today in YYYY-MM-DD
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const formatAmountMask = (rawValue: string): string => {
+    const clean = rawValue.replace(/\D/g, '');
+    if (!clean) return '';
+    const num = parseInt(clean, 10);
+    if (isNaN(num) || num === 0) return '';
+    const valueInCent = num / 100;
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(valueInCent);
+  };
+
   const belongsToGroup = useMemo(() => {
     return familyGroups.some(g => g.memberIds.includes(currentUser.id));
   }, [familyGroups, currentUser.id]);
@@ -63,7 +75,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     e.preventDefault();
     setAlert(null);
 
-    const parsedAmount = parseFloat(amount.replace(/[^\d.-]/g, ''));
+    const cleanAmount = amount.replace(/\./g, '').replace(',', '.');
+    const parsedAmount = parseFloat(cleanAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setAlert({ type: 'error', message: 'Por favor, informe um valor numérico válido maior que zero.' });
       return;
@@ -176,11 +189,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 </span>
                 <input
                   id="transaction-amount-input"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                  type="text"
+                  inputMode="numeric"
                   value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  onChange={e => setAmount(formatAmountMask(e.target.value))}
                   placeholder="0,00"
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/50 focus:bg-white border border-gray-200 focus:border-blue-500 rounded-xl text-gray-900 text-sm font-bold transition-all outline-none focus:ring-2 focus:ring-blue-500/10"
                   required
