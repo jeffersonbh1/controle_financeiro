@@ -65,19 +65,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Filter transactions by user AND month (co-owned by family group if active)
   const userTransactions = useMemo(() => {
-    const group = familyGroups.find(g => g.memberIds.includes(currentUser.id));
-    const allowedUserIds = group ? group.memberIds : [currentUser.id];
+    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
+    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
     return transactions.filter(tx => allowedUserIds.includes(tx.userId));
   }, [transactions, currentUser, familyGroups]);
 
   const filteredTransactions = useMemo(() => {
-    return userTransactions.filter(tx => tx.date.startsWith(selectedMonth));
+    return userTransactions.filter(tx => tx.date && tx.date.startsWith(selectedMonth));
   }, [userTransactions, selectedMonth]);
 
   // Track pending programmed fixed expenses for checklist reminder
   const pendingFixedExpenses = useMemo(() => {
-    const group = familyGroups.find(g => g.memberIds.includes(currentUser.id));
-    const allowedUserIds = group ? group.memberIds : [currentUser.id];
+    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
+    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
     return fixedExpenses.filter(fe => {
       const isOwned = allowedUserIds.includes(fe.userId);
       const isPaid = fe.paidMonths.includes(selectedMonth);
@@ -90,8 +90,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [pendingFixedExpenses]);
 
   const allFixedExpensesCount = useMemo(() => {
-    const group = familyGroups.find(g => g.memberIds.includes(currentUser.id));
-    const allowedUserIds = group ? group.memberIds : [currentUser.id];
+    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
+    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
     return fixedExpenses.filter(fe => allowedUserIds.includes(fe.userId)).length;
   }, [fixedExpenses, familyGroups, currentUser]);
 
@@ -183,7 +183,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm shadow-gray-100/30">
         <div>
           <h2 id="dashboard-hero-title" className="text-2xl font-bold text-gray-900 tracking-tight">
-            Olá, {currentUser.name}! 👋
+            Olá, {currentUser?.name || 'Usuário'}! 👋
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             Aqui está a visão geral das suas finanças pessoais para o mês selecionado.

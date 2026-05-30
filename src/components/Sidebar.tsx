@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setCollapsed,
   onLogout
 }) => {
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard },
@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="h-9 w-9 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center font-bold font-mono text-sm uppercase shrink-0 border border-blue-500/20">
-            {currentUser.name.substring(0, 2)}
+            {(currentUser?.name || 'US').substring(0, 2)}
           </div>
           
           {!collapsed && (
@@ -152,10 +152,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex-1 min-w-0"
             >
               <p className="text-sm font-semibold text-slate-100 truncate leading-tight">
-                {currentUser.name}
+                {currentUser?.name || 'Usuário'}
               </p>
               <p className="text-xs text-slate-500 truncate capitalize font-mono mt-0.5">
-                {currentUser.role === 'admin' ? 'Administrador' : 'Usuário Padrão'}
+                {currentUser?.role === 'admin' ? 'Administrador' : 'Usuário Padrão'}
               </p>
             </motion.div>
           )}

@@ -17,33 +17,62 @@ export default function App() {
   // 1. Core database states backed by localStorage
 
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('financas_users');
-    return saved ? JSON.parse(saved) : DEFAULT_USERS;
+    try {
+      const saved = localStorage.getItem('financas_users');
+      return saved ? JSON.parse(saved) : DEFAULT_USERS;
+    } catch (e) {
+      console.error('Error parsing financas_users', e);
+      return DEFAULT_USERS;
+    }
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem('financas_categories');
-    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    try {
+      const saved = localStorage.getItem('financas_categories');
+      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    } catch (e) {
+      console.error('Error parsing financas_categories', e);
+      return DEFAULT_CATEGORIES;
+    }
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('financas_transactions');
-    return saved ? JSON.parse(saved) : DEFAULT_TRANSACTIONS;
+    try {
+      const saved = localStorage.getItem('financas_transactions');
+      return saved ? JSON.parse(saved) : DEFAULT_TRANSACTIONS;
+    } catch (e) {
+      console.error('Error parsing financas_transactions', e);
+      return DEFAULT_TRANSACTIONS;
+    }
   });
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('financas_current_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('financas_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error('Error parsing financas_current_user', e);
+      return null;
+    }
   });
 
   const [familyGroups, setFamilyGroups] = useState<FamilyGroup[]>(() => {
-    const saved = localStorage.getItem('financas_family_groups');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('financas_family_groups');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Error parsing financas_family_groups', e);
+      return [];
+    }
   });
 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>(() => {
-    const saved = localStorage.getItem('financas_fixed_expenses');
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem('financas_fixed_expenses');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error parsing financas_fixed_expenses', e);
+    }
     return [
       {
         id: 'fe-1',
@@ -445,13 +474,13 @@ export default function App() {
             {/* Account information / level badge */}
             <div className="hidden sm:flex items-center gap-2.5">
               <div className="text-right">
-                <p className="text-xs font-bold text-gray-950">{currentUser.name}</p>
+                <p className="text-xs font-bold text-gray-950">{currentUser?.name || 'Usuário'}</p>
                 <p className="text-[10px] text-gray-400 font-bold capitalize tracking-wider">
-                  {currentUser.role === 'admin' ? 'Administrador' : 'Usuário Comum'}
+                  {currentUser?.role === 'admin' ? 'Administrador' : 'Usuário Comum'}
                 </p>
               </div>
               <div className="h-8.5 w-8.5 bg-blue-50 text-blue-600 font-bold rounded-xl flex items-center justify-center font-mono uppercase border border-blue-100 text-xs">
-                {currentUser.name.substring(0, 2)}
+                {(currentUser?.name || 'US').substring(0, 2)}
               </div>
             </div>
           </div>
@@ -518,7 +547,7 @@ export default function App() {
                   { id: 'categories', label: 'Categorias' },
                   { id: 'reports', label: 'Relatórios' },
                   { id: 'family-group', label: 'Grupo Familiar' },
-                  ...(currentUser.role === 'admin' ? [{ id: 'users', label: 'Usuários do Sistema' }] : []),
+                  ...(currentUser?.role === 'admin' ? [{ id: 'users', label: 'Usuários do Sistema' }] : []),
                 ].map(item => (
                   <button
                     key={item.id}
@@ -539,8 +568,8 @@ export default function App() {
 
               <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-100">{currentUser.name}</p>
-                  <p className="text-[10px] text-slate-500 capitalize">{currentUser.role}</p>
+                  <p className="text-xs font-bold text-slate-100">{currentUser?.name || 'Usuário'}</p>
+                  <p className="text-[10px] text-slate-500 capitalize">{currentUser?.role || 'Usuário'}</p>
                 </div>
                 <button
                   onClick={handleLogout}

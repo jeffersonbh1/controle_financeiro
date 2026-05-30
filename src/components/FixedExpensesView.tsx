@@ -54,13 +54,13 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
 
   // Find user's active family group
   const activeGroup = useMemo(() => {
-    return familyGroups.find(g => g.memberIds.includes(currentUser.id));
-  }, [familyGroups, currentUser.id]);
+    return familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
+  }, [familyGroups, currentUser?.id]);
 
   // Allowed userIds to filter fixed expenses
   const allowedUserIds = useMemo(() => {
-    return activeGroup ? activeGroup.memberIds : [currentUser.id];
-  }, [activeGroup, currentUser.id]);
+    return activeGroup ? activeGroup.memberIds : [currentUser?.id || ''];
+  }, [activeGroup, currentUser?.id]);
 
   // Filter fixed expenses by ownership or family group sharing
   const filteredFixedExpenses = useMemo(() => {
