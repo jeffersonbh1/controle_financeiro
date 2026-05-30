@@ -1,0 +1,6 @@
+{
+  "name": "Gerenciador de Gastos Pessoais",
+  "description": "Uma aplicação completa e elegante de gerenciamento de gastos pessoais com dashboard, categorias customizadas, cadastro de despesas/receitas, gerenciamento de usuários e relatórios filtráveis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
