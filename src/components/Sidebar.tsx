@@ -13,7 +13,8 @@ import {
   ChevronRight, 
   Wallet,
   Home,
-  Calendar
+  Calendar,
+  DollarSign
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -55,22 +56,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       className="bg-slate-900 text-slate-100 flex flex-col h-screen h-max-screen sticky top-0 shrink-0 select-none z-30 shadow-2xl border-r border-slate-800"
     >
       {/* Sidebar Header */}
-      <div className="p-5 flex items-center justify-between border-b border-slate-800/60 overflow-hidden min-h-[73px]">
+      <div className="p-4.5 flex items-center justify-between border-b border-slate-800/60 overflow-hidden min-h-[73px]">
         {!collapsed && (
           <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2.5 font-bold text-lg text-slate-100 tracking-tight whitespace-nowrap"
+            className="flex items-center gap-2.5 font-bold text-base text-slate-100 tracking-tight whitespace-nowrap"
           >
-            <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-extrabold text-base select-none shadow-md shadow-blue-600/20">
-              $
+            <div className="flex items-center justify-center w-8.5 h-8.5 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 shrink-0">
+              <DollarSign className="h-4.5 w-4.5 font-black" />
             </div>
-            <span>FinControl</span>
+            <span>Nosso Din Din</span>
           </motion.div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-extrabold text-base select-none shadow-md shadow-blue-600/20 mx-auto">
-            $
+          <div className="flex items-center justify-center w-8.5 h-8.5 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 shrink-0 mx-auto">
+            <DollarSign className="h-4.5 w-4.5 font-black" />
           </div>
         )}
         

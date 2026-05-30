@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { DEFAULT_USERS } from '../mockData';
-import { Wallet, LogIn, ShieldAlert, KeyRound, Mail, UserCheck } from 'lucide-react';
+import { Wallet, LogIn, ShieldAlert, KeyRound, Mail, UserCheck, Users, DollarSign } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LoginViewProps {
@@ -62,11 +62,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, users }) => {
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-500/5 rounded-full -ml-10 -mb-10 blur-xl" />
 
         <div className="flex flex-col items-center mb-8 relative z-10">
-          <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl mb-4 flex items-center justify-center font-extrabold text-2xl select-none shadow-lg shadow-blue-600/25">
-            $
+          <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-white rounded-2xl mb-4 select-none shadow-xl shadow-emerald-500/25">
+            <DollarSign className="h-9 w-9 opacity-95 stroke-[2.5]" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight text-center">
-            FinControl
+            Nosso Din Din
           </h1>
           <p className="text-sm text-gray-500 mt-1.5 text-center">
             Gerencie seus gastos e receitas de forma simples e intuitiva

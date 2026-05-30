@@ -10,7 +10,7 @@ import { UsersView } from './components/UsersView';
 import { ReportsView } from './components/ReportsView';
 import { FamilyGroupsView } from './components/FamilyGroupsView';
 import { FixedExpensesView } from './components/FixedExpensesView';
-import { Menu, Wallet, LogOut, RefreshCw } from 'lucide-react';
+import { Menu, Wallet, LogOut, RefreshCw, Users, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   loadFullDBData,
@@ -588,11 +588,11 @@ export default function App() {
               className="fixed inset-y-0 left-0 w-72 bg-slate-900 text-slate-100 flex flex-col z-50 md:hidden p-5"
             >
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-2.5 font-bold text-lg text-slate-100">
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-extrabold text-base select-none">
-                    $
+                <div className="flex items-center gap-2.5 font-bold text-base text-slate-100">
+                  <div className="flex items-center justify-center w-8.5 h-8.5 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 shrink-0">
+                    <DollarSign className="h-4.5 w-4.5 font-black" />
                   </div>
-                  <span>FinControl</span>
+                  <span>Nosso Din Din</span>
                 </div>
                 <button 
                   onClick={() => setMobileMenuOpen(false)}
