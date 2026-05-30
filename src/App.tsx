@@ -12,6 +12,19 @@ import { FamilyGroupsView } from './components/FamilyGroupsView';
 import { FixedExpensesView } from './components/FixedExpensesView';
 import { Menu, Wallet, LogOut, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  loadFullDBData,
+  saveUserDB,
+  deleteUserDB,
+  saveCategoryDB,
+  deleteCategoryDB,
+  saveTransactionDB,
+  deleteTransactionDB,
+  saveFamilyGroupDB,
+  deleteFamilyGroupDB,
+  saveFixedExpenseDB,
+  deleteFixedExpenseDB
+} from './lib/supabase';
 
 export default function App() {
   // 1. Core database states backed by localStorage
@@ -147,6 +160,35 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Silent automatic sync from Supabase database on app startup
+  useEffect(() => {
+    async function loadDB() {
+      const dbData = await loadFullDBData();
+      if (dbData) {
+        console.log('Dados importados com sucesso do Supabase!');
+        if (dbData.users.length > 0) setUsers(dbData.users);
+        if (dbData.categories.length > 0) setCategories(dbData.categories);
+        setTransactions(dbData.transactions);
+        setFamilyGroups(dbData.familyGroups);
+        setFixedExpenses(dbData.fixedExpenses);
+
+        const savedCurrentUserString = localStorage.getItem('financas_current_user');
+        if (savedCurrentUserString) {
+          try {
+            const savedUser = JSON.parse(savedCurrentUserString);
+            const freshUser = dbData.users.find(u => u.id === savedUser.id);
+            if (freshUser) {
+              setCurrentUser(freshUser);
+            }
+          } catch (e) {
+            console.error('Erro ao sincronizar usuario logado na inicializacao', e);
+          }
+        }
+      }
+    }
+    loadDB();
+  }, []);
+
   // Actions / Handlers
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -160,14 +202,17 @@ export default function App() {
 
   const handleAddUser = (user: User) => {
     setUsers(prev => [user, ...prev]);
+    saveUserDB(user);
   };
 
   const handleDeleteUser = (id: string) => {
     setUsers(prev => prev.filter(u => u.id !== id));
+    deleteUserDB(id);
   };
 
   const handleAddCategory = (category: Category) => {
     setCategories(prev => [...prev, category]);
+    saveCategoryDB(category);
   };
 
   const handleDeleteCategory = (id: string) => {
@@ -178,38 +223,53 @@ export default function App() {
       return;
     }
     setCategories(prev => prev.filter(c => c.id !== id));
+    deleteCategoryDB(id);
   };
 
   const handleAddTransaction = (tx: Transaction) => {
     setTransactions(prev => [tx, ...prev]);
+    saveTransactionDB(tx);
   };
 
   const handleDeleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
+    deleteTransactionDB(id);
   };
 
   const handleAddFamilyGroup = (group: FamilyGroup) => {
     setFamilyGroups(prev => [...prev, group]);
+    saveFamilyGroupDB(group);
   };
 
   const handleDeleteFamilyGroup = (id: string) => {
     setFamilyGroups(prev => prev.filter(g => g.id !== id));
+    deleteFamilyGroupDB(id);
   };
 
   const handleAddMemberToGroup = (groupId: string, userId: string) => {
     setFamilyGroups(prev => prev.map(g => {
       if (g.id === groupId) {
         const cleanPrevAndInclude = g.memberIds.includes(userId) ? g.memberIds : [...g.memberIds, userId];
-        return { ...g, memberIds: cleanPrevAndInclude };
+        const updated = { ...g, memberIds: cleanPrevAndInclude };
+        saveFamilyGroupDB(updated);
+        return updated;
       }
-      return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
+      const updatedIdList = g.memberIds.filter(id => id !== userId);
+      if (updatedIdList.length !== g.memberIds.length) {
+        const updated = { ...g, memberIds: updatedIdList };
+        saveFamilyGroupDB(updated);
+        return updated;
+      }
+      return g;
     }));
   };
 
   const handleRemoveMemberFromGroup = (groupId: string, userId: string) => {
     setFamilyGroups(prev => prev.map(g => {
       if (g.id === groupId) {
-        return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
+        const updated = { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
+        saveFamilyGroupDB(updated);
+        return updated;
       }
       return g;
     }));
@@ -217,10 +277,12 @@ export default function App() {
 
   const handleAddFixedExpense = (expense: FixedExpense) => {
     setFixedExpenses(prev => [...prev, expense]);
+    saveFixedExpenseDB(expense);
   };
 
   const handleDeleteFixedExpense = (id: string) => {
     setFixedExpenses(prev => prev.filter(fe => fe.id !== id));
+    deleteFixedExpenseDB(id);
   };
 
   const handleToggleFixedExpensePaid = (id: string, month: string, shouldAddTransaction: boolean) => {
@@ -230,7 +292,9 @@ export default function App() {
         const paidMonths = hasPaid
           ? fe.paidMonths.filter(m => m !== month)
           : [...fe.paidMonths, month];
-        return { ...fe, paidMonths };
+        const updated = { ...fe, paidMonths };
+        saveFixedExpenseDB(updated);
+        return updated;
       }
       return fe;
     }));
