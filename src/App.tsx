@@ -10,34 +10,10 @@ import { UsersView } from './components/UsersView';
 import { ReportsView } from './components/ReportsView';
 import { FamilyGroupsView } from './components/FamilyGroupsView';
 import { FixedExpensesView } from './components/FixedExpensesView';
-import { Menu, Wallet, LogOut, RefreshCw, Database, AlertCircle, CheckCircle, Copy, Info, Terminal, ChevronRight } from 'lucide-react';
+import { Menu, Wallet, LogOut, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  supabase,
-  isSupabaseConfigured,
-  fetchSupabaseData,
-  saveUser,
-  deleteUser,
-  saveCategory,
-  deleteCategory,
-  saveTransaction,
-  deleteTransaction,
-  saveFamilyGroup,
-  deleteFamilyGroup,
-  saveFixedExpense,
-  deleteFixedExpense,
-  batchResetSupabase,
-  SUPABASE_SCHEMA_SQL,
-  checkSupabaseConnection
-} from './lib/supabase';
 
 export default function App() {
-  // Supabase states
-  const [supabaseStatus, setSupabaseStatus] = useState<'idle' | 'loading' | 'success' | 'unconfigured' | 'error' | 'no_tables'>('idle');
-  const [supabaseMessage, setSupabaseMessage] = useState('');
-  const [showSqlDialog, setShowSqlDialog] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
-
   // 1. Core database states backed by localStorage
 
   const [users, setUsers] = useState<User[]>(() => {
@@ -142,63 +118,6 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Supabase Fetcher Implementation
-  const loadSupabaseData = async () => {
-    if (!isSupabaseConfigured()) {
-      setSupabaseStatus('unconfigured');
-      return;
-    }
-
-    setSupabaseStatus('loading');
-    try {
-      const isConnected = await checkSupabaseConnection();
-      if (!isConnected) {
-        setSupabaseStatus('error');
-        setSupabaseMessage('Não foi possível conectar à API do Supabase. Verifique suas credenciais em .env ou no painel de segredos.');
-        return;
-      }
-
-      const data = await fetchSupabaseData();
-      
-      // Auto-load into React local states
-      if (data.users.length > 0) setUsers(data.users);
-      if (data.categories.length > 0) setCategories(data.categories);
-      if (data.transactions.length > 0) setTransactions(data.transactions);
-      
-      setFamilyGroups(data.familyGroups);
-      setFixedExpenses(data.fixedExpenses);
-
-      setSupabaseStatus('success');
-    } catch (error: any) {
-      if (error && error.message === 'TABLES_NOT_FOUND') {
-        setSupabaseStatus('no_tables');
-        setSupabaseMessage('Tudo pronto! Porém, a estrutura de tabelas ainda precisa ser criada utilizando o script SQL fornecido.');
-      } else {
-        setSupabaseStatus('error');
-        setSupabaseMessage(error?.message || 'Erro de sincronização.');
-      }
-    }
-  };
-
-  useEffect(() => {
-    loadSupabaseData();
-  }, []);
-
-  const handlePushStateToSupabase = async () => {
-    if (!isSupabaseConfigured()) return;
-    if (window.confirm('Deseja enviar todos os seus dados locais ativos para as tabelas do Supabase? Isso irá sobrescrever registros conflitantes.')) {
-      setSupabaseStatus('loading');
-      try {
-        await batchResetSupabase(users, categories, transactions, fixedExpenses);
-        setSupabaseStatus('success');
-        alert('Sincronização concluída! Todos os dados locais foram publicados no Supabase.');
-      } catch (err: any) {
-        setSupabaseStatus('error');
-        setSupabaseMessage('Erro ao exportar dados: ' + err.message);
-      }
-    }
-  };
-
   // Actions / Handlers
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -212,17 +131,14 @@ export default function App() {
 
   const handleAddUser = (user: User) => {
     setUsers(prev => [user, ...prev]);
-    saveUser(user);
   };
 
   const handleDeleteUser = (id: string) => {
     setUsers(prev => prev.filter(u => u.id !== id));
-    deleteUser(id);
   };
 
   const handleAddCategory = (category: Category) => {
     setCategories(prev => [...prev, category]);
-    saveCategory(category);
   };
 
   const handleDeleteCategory = (id: string) => {
@@ -233,94 +149,66 @@ export default function App() {
       return;
     }
     setCategories(prev => prev.filter(c => c.id !== id));
-    deleteCategory(id);
   };
 
   const handleAddTransaction = (tx: Transaction) => {
     setTransactions(prev => [tx, ...prev]);
-    saveTransaction(tx);
   };
 
   const handleDeleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
-    deleteTransaction(id);
   };
 
   const handleAddFamilyGroup = (group: FamilyGroup) => {
     setFamilyGroups(prev => [...prev, group]);
-    saveFamilyGroup(group);
   };
 
   const handleDeleteFamilyGroup = (id: string) => {
     setFamilyGroups(prev => prev.filter(g => g.id !== id));
-    deleteFamilyGroup(id);
   };
 
   const handleAddMemberToGroup = (groupId: string, userId: string) => {
-    setFamilyGroups(prev => {
-      const updated = prev.map(g => {
-        if (g.id === groupId) {
-          const cleanPrevAndInclude = g.memberIds.includes(userId) ? g.memberIds : [...g.memberIds, userId];
-          return { ...g, memberIds: cleanPrevAndInclude };
-        }
-        return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
-      });
-      // Find the one updated and sync to Supabase
-      const targetedGroup = updated.find(g => g.id === groupId);
-      if (targetedGroup) saveFamilyGroup(targetedGroup);
-      
-      // Also sync other groups that had changes
-      updated.forEach(g => {
-        if (g.id !== groupId) saveFamilyGroup(g);
-      });
-      return updated;
-    });
+    setFamilyGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        const cleanPrevAndInclude = g.memberIds.includes(userId) ? g.memberIds : [...g.memberIds, userId];
+        return { ...g, memberIds: cleanPrevAndInclude };
+      }
+      return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
+    }));
   };
 
   const handleRemoveMemberFromGroup = (groupId: string, userId: string) => {
-    setFamilyGroups(prev => {
-      const updated = prev.map(g => {
-        if (g.id === groupId) {
-          return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
-        }
-        return g;
-      });
-      const targetedGroup = updated.find(g => g.id === groupId);
-      if (targetedGroup) saveFamilyGroup(targetedGroup);
-      return updated;
-    });
+    setFamilyGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
+      }
+      return g;
+    }));
   };
 
   const handleAddFixedExpense = (expense: FixedExpense) => {
     setFixedExpenses(prev => [...prev, expense]);
-    saveFixedExpense(expense);
   };
 
   const handleDeleteFixedExpense = (id: string) => {
     setFixedExpenses(prev => prev.filter(fe => fe.id !== id));
-    deleteFixedExpense(id);
   };
 
   const handleToggleFixedExpensePaid = (id: string, month: string, shouldAddTransaction: boolean) => {
-    setFixedExpenses(prev => {
-      const updated = prev.map(fe => {
-        if (fe.id === id) {
-          const hasPaid = fe.paidMonths.includes(month);
-          const paidMonths = hasPaid
-            ? fe.paidMonths.filter(m => m !== month)
-            : [...fe.paidMonths, month];
-          const newFe = { ...fe, paidMonths };
-          saveFixedExpense(newFe);
-          return newFe;
-        }
-        return fe;
-      });
-      return updated;
-    });
+    setFixedExpenses(prev => prev.map(fe => {
+      if (fe.id === id) {
+        const hasPaid = fe.paidMonths.includes(month);
+        const paidMonths = hasPaid
+          ? fe.paidMonths.filter(m => m !== month)
+          : [...fe.paidMonths, month];
+        return { ...fe, paidMonths };
+      }
+      return fe;
+    }));
   };
 
   // Helper to reset database to factory mock data instantly for evaluation
-  const handleResetData = async () => {
+  const handleResetData = () => {
     if (window.confirm('Deseja realmente reiniciar todo o banco de dados para os valores originais do teste?')) {
       setUsers(DEFAULT_USERS);
       setCategories(DEFAULT_CATEGORIES);
@@ -368,15 +256,6 @@ export default function App() {
       setFixedExpenses(standardFixed);
       setCurrentUser(DEFAULT_USERS[1]); // Login back as standard user
       setActiveTab('dashboard');
-
-      if (supabaseStatus === 'success') {
-        try {
-          await batchResetSupabase(DEFAULT_USERS, DEFAULT_CATEGORIES, DEFAULT_TRANSACTIONS, standardFixed);
-          alert('Banco de dados Supabase reiniciado com sucesso!');
-        } catch (err) {
-          console.error("Error resetting Supabase database model:", err);
-        }
-      }
     }
   };
 
@@ -551,38 +430,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Supabase status indicator pill */}
-            <button
-              id="supabase-status-indicator"
-              onClick={() => setShowSqlDialog(true)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border select-none ${
-                supabaseStatus === 'success'
-                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 border-emerald-200'
-                  : supabaseStatus === 'loading'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
-                  : supabaseStatus === 'no_tables'
-                  ? 'bg-amber-50 text-amber-750 hover:bg-amber-100/80 border-amber-255'
-                  : 'bg-rose-50 text-rose-750 hover:bg-rose-100/80 border-rose-255'
-              }`}
-              title="Ver status de integração Supabase e comandos SQL"
-            >
-              <Database size={13} className="shrink-0" />
-              <span className="hidden sm:inline">
-                {supabaseStatus === 'success' && 'Supabase Sincronizado'}
-                {supabaseStatus === 'loading' && 'Carregando Supabase...'}
-                {supabaseStatus === 'no_tables' && 'Supabase Pede Tabelas'}
-                {supabaseStatus === 'unconfigured' && 'Instalar Supabase'}
-                {supabaseStatus === 'error' && 'Erro de Conectividade'}
-              </span>
-              <span className="sm:hidden font-mono text-[10px]">
-                {supabaseStatus === 'success' && 'Supabase'}
-                {supabaseStatus === 'loading' && 'Lendo...'}
-                {supabaseStatus === 'no_tables' && 'SQL'}
-                {supabaseStatus === 'unconfigured' && 'N/A'}
-                {supabaseStatus === 'error' && 'Erro'}
-              </span>
-            </button>
-
             {/* Quick Refresh Database Tooltip Button */}
             <button 
               onClick={handleResetData}
@@ -702,190 +549,6 @@ export default function App() {
                 >
                   <LogOut size={18} />
                 </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Supabase connection detail and SQL script dialog modal */}
-      <AnimatePresence>
-        {showSqlDialog && (
-          <>
-            {/* Dark fuzzy backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowSqlDialog(false)}
-              className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 pointer-events-auto"
-            />
-            
-            {/* Modal Body */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-x-4 top-10 bottom-10 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[720px] bg-white rounded-2xl shadow-xl border border-gray-100 z-[60] flex flex-col overflow-hidden pointer-events-auto"
-            >
-              {/* Header */}
-              <div className="p-6 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-600 text-white rounded-xl">
-                    <Database size={20} className="stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900 leading-none">
-                      Integração Supabase
-                    </h3>
-                    <p className="text-xs text-gray-400 mt-1.5 font-medium leading-none">
-                      Gerencie a conexão e copie a estrutura das tabelas
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowSqlDialog(false)}
-                  className="px-3.5 py-1.5 bg-gray-200 hover:bg-gray-300/80 text-gray-700 rounded-xl font-bold text-xs transition duration-150 cursor-pointer"
-                >
-                  Fechar
-                </button>
-              </div>
-
-              {/* Scrollable content pane */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                
-                {/* Integration Status Tracker Card */}
-                <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
-                  supabaseStatus === 'success'
-                    ? 'bg-emerald-50/70 border-emerald-150 text-emerald-900'
-                    : supabaseStatus === 'loading'
-                    ? 'bg-blue-50/70 border-blue-150 text-blue-900'
-                    : supabaseStatus === 'no_tables'
-                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                    : 'bg-rose-50/70 border-rose-150 text-rose-900'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    {supabaseStatus === 'success' ? (
-                      <CheckCircle className="text-emerald-600 shrink-0 mt-0.5" size={20} />
-                    ) : supabaseStatus === 'no_tables' ? (
-                      <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
-                    ) : (
-                      <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={20} />
-                    )}
-                    
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold">
-                        Status atual: {' '}
-                        <span className="capitalize font-extrabold underline decoration-2">
-                          {supabaseStatus === 'success' && 'Conectado e Ativo'}
-                          {supabaseStatus === 'loading' && 'Verificando conexão...'}
-                          {supabaseStatus === 'no_tables' && 'Conectado sem Tabelas'}
-                          {supabaseStatus === 'unconfigured' && 'Não Configurado'}
-                          {supabaseStatus === 'error' && 'Falha na Conexão'}
-                        </span>
-                      </h4>
-                      <p className="text-xs font-semibold opacity-85 mt-1 leading-relaxed">
-                        {supabaseStatus === 'success' && 'Seu aplicativo está lendo e persistindo todas as informações diretamente do seu banco de dados Supabase em tempo real!'}
-                        {supabaseStatus === 'no_tables' && 'A conexão foi estabelecida com sucesso! Porém, o Supabase retornou que as tabelas de finanças não existem ainda. Siga as instruções abaixo para criá-las no editor de SQL.'}
-                        {supabaseStatus === 'unconfigured' && 'Nenhuma variável VITE_SUPABASE_URL foi encontrada no ambiente de execução. Adicione as chaves no arquivo \`.env\` ou na aba de segredos do criador de apps.'}
-                        {supabaseStatus === 'error' && (supabaseMessage || 'Verifique se as chaves fornecidas estão corretas e se as requisições não estão sendo bloqueadas por CORS.')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions according to status */}
-                  {supabaseStatus === 'success' && (
-                    <div className="flex flex-wrap gap-2.5 mt-2 pt-2 border-t border-emerald-250/30">
-                      <button
-                        onClick={loadSupabaseData}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer"
-                      >
-                        Recarregar do Supabase
-                      </button>
-                      <button
-                        onClick={handlePushStateToSupabase}
-                        className="px-3.5 py-2 bg-white hover:bg-emerald-100/50 text-emerald-800 border border-emerald-250 rounded-lg text-xs font-bold cursor-pointer"
-                      >
-                        Exportar Meus Dados Atuais para o Supabase
-                      </button>
-                    </div>
-                  )}
-
-                  {supabaseStatus === 'no_tables' && (
-                    <div className="flex gap-2.5 mt-2 pt-2 border-t border-amber-250/30">
-                      <button
-                        onClick={handlePushStateToSupabase}
-                        className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Terminal size={12} />
-                        Enviar Dados Padrões (Criar Registros)
-                      </button>
-                      <button
-                        onClick={loadSupabaseData}
-                        className="px-4 py-2 bg-white hover:bg-amber-100/20 text-amber-800 border border-amber-250 rounded-lg text-xs font-bold cursor-pointer"
-                      >
-                        Testar Novamente
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Instructions Block */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-1.5 text-gray-800 font-bold text-sm">
-                    <Info size={16} className="text-blue-600" />
-                    <span>Como inicializar o Banco no Supabase</span>
-                  </div>
-                  <ol className="text-xs text-gray-400 space-y-2 pl-4 list-decimal leading-relaxed">
-                    <li>Entre no seu painel do <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-blue-600 font-bold underline hover:text-blue-700">Supabase</a>.</li>
-                    <li>Navegue até a seção de <strong>SQL Editor</strong> no menu lateral esquerdo.</li>
-                    <li>Clique em <strong>New Query</strong> para abrir uma aba de comandos em branco.</li>
-                    <li>Copie o script SQL apresentado abaixo, cole-o na aba e clique em <strong>Run</strong> no canto inferior direito.</li>
-                    <li>PRONTO! Volte ao painel e clique em "Testar Novamente" ou recarregue a página!</li>
-                  </ol>
-                </div>
-
-                {/* SQL Code Sandbox Block */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold">
-                      <Terminal size={14} className="text-slate-600" />
-                      <span>Script SQL de Criação das Tabelas</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
-                        setCopiedSql(true);
-                        setTimeout(() => setCopiedSql(false), 2000);
-                      }}
-                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                    >
-                      {copiedSql ? (
-                        <>
-                          <CheckCircle size={12} className="text-emerald-500" />
-                          <span className="text-emerald-600">Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={12} />
-                          <span>Copiar SQL</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <pre className="p-4 bg-slate-900 text-slate-100 text-[11px] rounded-xl overflow-x-auto font-mono leading-relaxed h-64 border border-slate-950 select-all">
-                    {SUPABASE_SCHEMA_SQL}
-                  </pre>
-                </div>
-
-              </div>
-
-              {/* Informative Footer banner */}
-              <div className="p-4 bg-gray-50 border-t border-gray-150 text-center">
-                <p className="text-[10px] sm:text-xs text-gray-400 font-medium select-all">
-                  Configurado para: <span className="font-mono text-gray-600 font-bold">https://fjlluvervbapxakmorxh.supabase.co</span>
-                </p>
               </div>
             </motion.div>
           </>
