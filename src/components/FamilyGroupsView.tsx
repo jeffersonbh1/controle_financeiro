@@ -55,10 +55,14 @@ export const FamilyGroupsView: React.FC<FamilyGroupsViewProps> = ({
     }
 
     const newGroupId = `group-${Date.now()}`;
+    const initialMembers = [...selectedInitialUsers];
+    if (!initialMembers.includes(currentUser.id)) {
+      initialMembers.push(currentUser.id);
+    }
     const newGroup: FamilyGroup = {
       id: newGroupId,
       name: groupName.trim(),
-      memberIds: [...selectedInitialUsers], // initial users + current user handled in App.tsx or here
+      memberIds: initialMembers,
     };
 
     onAddFamilyGroup(newGroup);
