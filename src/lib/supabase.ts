@@ -235,11 +235,24 @@ export async function loadFullDBData() {
       return null;
     }
 
+    const parsedUsers = (dUsers || []).map(mapFromDBUser);
+    const parsedGroups = (dFamilyGroups || []).map(mapFromDBFamilyGroup);
+
+    // Dynamic enrichment: reconstruct group memberIds based on users' mapped familyGroupId
+    const enrichedGroups = parsedGroups.map(g => {
+      const usersInGroup = parsedUsers.filter(u => u.familyGroupId === g.id).map(u => u.id);
+      const uniqueMemberIds = Array.from(new Set([...(g.memberIds || []), ...usersInGroup]));
+      return {
+        ...g,
+        memberIds: uniqueMemberIds
+      };
+    });
+
     return {
-      users: (dUsers || []).map(mapFromDBUser),
+      users: parsedUsers,
       categories: (dCategories || []).map(mapFromDBCategory),
       transactions: (dTransactions || []).map(mapFromDBTransaction),
-      familyGroups: (dFamilyGroups || []).map(mapFromDBFamilyGroup),
+      familyGroups: enrichedGroups,
       fixedExpenses: (dFixedExpenses || []).map(mapFromDBFixedExpense)
     };
   } catch (err) {
