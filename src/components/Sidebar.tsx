@@ -17,6 +17,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface SidebarProps {
   currentUser: User;
@@ -137,6 +138,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <Menu className="h-5 w-5" />
         </button>
+      </div>
+
+      {/* Database sync connection status */}
+      <div className="px-4 py-2 bg-slate-950/20 text-[10px] flex items-center gap-2 text-slate-400 select-none border-t border-slate-800/40 min-h-[28px]">
+        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSupabaseConfigured() ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+        {!collapsed && (
+          <span className="truncate font-mono">
+            {isSupabaseConfigured() ? 'Sincronizado Supabase' : 'Offline (Banco Local)'}
+          </span>
+        )}
       </div>
 
       {/* User Session Footer */}

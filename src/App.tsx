@@ -239,14 +239,47 @@ export default function App() {
   const handleAddFamilyGroup = (group: FamilyGroup) => {
     setFamilyGroups(prev => [...prev, group]);
     saveFamilyGroupDB(group);
+
+    // Update familyGroupId for members included in this group
+    if (group.memberIds.length > 0) {
+      setUsers(prevUsers => prevUsers.map(u => {
+        if (group.memberIds.includes(u.id)) {
+          const updatedUser = { ...u, familyGroupId: group.id };
+          saveUserDB(updatedUser);
+          if (currentUser && u.id === currentUser.id) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return u;
+      }));
+    }
   };
 
   const handleDeleteFamilyGroup = (id: string) => {
+    // Find the group to get its members first
+    const group = familyGroups.find(g => g.id === id);
+    if (group) {
+      // Clear familyGroupId for all members of this group
+      setUsers(prevUsers => prevUsers.map(u => {
+        if (group.memberIds.includes(u.id) || u.familyGroupId === id) {
+          const updatedUser = { ...u, familyGroupId: undefined };
+          saveUserDB(updatedUser);
+          if (currentUser && u.id === currentUser.id) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return u;
+      }));
+    }
+
     setFamilyGroups(prev => prev.filter(g => g.id !== id));
     deleteFamilyGroupDB(id);
   };
 
   const handleAddMemberToGroup = (groupId: string, userId: string) => {
+    // Update the groups
     setFamilyGroups(prev => prev.map(g => {
       if (g.id === groupId) {
         const cleanPrevAndInclude = g.memberIds.includes(userId) ? g.memberIds : [...g.memberIds, userId];
@@ -262,9 +295,23 @@ export default function App() {
       }
       return g;
     }));
+
+    // Update the user
+    setUsers(prevUsers => prevUsers.map(u => {
+      if (u.id === userId) {
+        const updatedUser = { ...u, familyGroupId: groupId };
+        saveUserDB(updatedUser);
+        if (currentUser && u.id === currentUser.id) {
+          setCurrentUser(updatedUser);
+        }
+        return updatedUser;
+      }
+      return u;
+    }));
   };
 
   const handleRemoveMemberFromGroup = (groupId: string, userId: string) => {
+    // Update the groups
     setFamilyGroups(prev => prev.map(g => {
       if (g.id === groupId) {
         const updated = { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
@@ -272,6 +319,19 @@ export default function App() {
         return updated;
       }
       return g;
+    }));
+
+    // Update the user
+    setUsers(prevUsers => prevUsers.map(u => {
+      if (u.id === userId) {
+        const updatedUser = { ...u, familyGroupId: undefined };
+        saveUserDB(updatedUser);
+        if (currentUser && u.id === currentUser.id) {
+          setCurrentUser(updatedUser);
+        }
+        return updatedUser;
+      }
+      return u;
     }));
   };
 
@@ -361,7 +421,7 @@ export default function App() {
 
   // If not authenticated, force LoginView
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} users={users} />;
+    return <LoginView onLogin={handleLogin} users={users} onRegister={handleAddUser} />;
   }
 
   // Active view router mapping
