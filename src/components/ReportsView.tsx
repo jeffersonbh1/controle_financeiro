@@ -38,10 +38,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [endDate, setEndDate] = useState<string>('2026-05-31'); // Nice ending value
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Find user's active family group
+  const userGroup = useMemo(() => {
+    return currentUser ? familyGroups.find(g => g.memberIds.includes(currentUser.id)) : null;
+  }, [familyGroups, currentUser]);
+
+  // Scope: defaults to 'group' if in a group, otherwise 'individual'
+  const [filterScope, setFilterScope] = useState<'group' | 'individual'>('group');
+
   // Process filters TOGETHER - "sendo possível aplicar todos esses filtros juntos"
   const filteredTransactions = useMemo(() => {
-    const group = currentUser ? familyGroups.find(g => g.memberIds.includes(currentUser.id)) : null;
-    const allowedUserIds = currentUser ? (group ? group.memberIds : [currentUser.id]) : [];
+    const allowedUserIds = currentUser 
+      ? (userGroup && filterScope === 'group' ? userGroup.memberIds : [currentUser.id]) 
+      : [];
 
     return transactions.filter(tx => {
       // 0. User filtering for privacy & family sharing
@@ -81,7 +90,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       return true;
     });
-  }, [transactions, filterCategory, filterType, startDate, endDate, searchQuery, categories]);
+  }, [transactions, filterCategory, filterType, startDate, endDate, searchQuery, categories, currentUser, userGroup, filterScope]);
 
   // Sort transactions (latest first)
   const sortedTransactions = useMemo(() => {
@@ -108,6 +117,40 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       count: filteredTransactions.length
     };
   }, [filteredTransactions]);
+
+  // Breakdowns by individual group member for family groups
+  const memberBreakdowns = useMemo(() => {
+    if (!userGroup) return [];
+
+    const breakdowns: Record<string, { name: string; email: string; incomes: number; expenses: number; balance: number }> = {};
+    
+    userGroup.memberIds.forEach(mId => {
+      const userObj = users.find(u => u.id === mId);
+      breakdowns[mId] = {
+        name: userObj?.name || 'Membro do Grupo',
+        email: userObj?.email || '',
+        incomes: 0,
+        expenses: 0,
+        balance: 0
+      };
+    });
+
+    filteredTransactions.forEach(tx => {
+      if (breakdowns[tx.userId]) {
+        if (tx.type === 'income') {
+          breakdowns[tx.userId].incomes += tx.amount;
+        } else {
+          breakdowns[tx.userId].expenses += tx.amount;
+        }
+      }
+    });
+
+    Object.keys(breakdowns).forEach(mId => {
+      breakdowns[mId].balance = breakdowns[mId].incomes - breakdowns[mId].expenses;
+    });
+
+    return Object.values(breakdowns).sort((a, b) => b.balance - a.balance);
+  }, [userGroup, filteredTransactions, users]);
 
   // Categorical percentage bars representation (for expenses mostly)
   const categorySummary = useMemo(() => {
@@ -141,6 +184,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     setStartDate('2026-05-01');
     setEndDate('2026-05-31');
     setSearchQuery('');
+    setFilterScope('group');
   };
 
   const formatBRL = (val: number) => {
@@ -183,7 +227,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 ${userGroup ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
+          {/* Escopo do Relatório (Apenas se em Grupo Familiar) */}
+          {userGroup && (
+            <div>
+              <label htmlFor="report-scope-filter" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 pl-1">
+                Visualização (Escopo)
+              </label>
+              <select
+                id="report-scope-filter"
+                value={filterScope}
+                onChange={e => setFilterScope(e.target.value as 'group' | 'individual')}
+                className="w-full px-3 py-2 bg-blue-50 hover:bg-blue-100/50 border border-blue-250 focus:border-blue-500 rounded-xl text-blue-950 font-bold text-xs transition-all focus:ring-2 focus:ring-blue-500/10 outline-none cursor-pointer"
+              >
+                <option value="group">Consolidado ({userGroup.name})</option>
+                <option value="individual">Apenas Meu Cadastro</option>
+              </select>
+            </div>
+          )}
+
           {/* Categoria */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 pl-1">
@@ -386,42 +448,85 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* Sidebar Breakdown of Spending Category weights (4 columns span) */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm print:hidden">
-          <h4 className="text-base font-bold text-gray-900 mb-1">Pesos por Categoria</h4>
-          <p className="text-xs text-gray-400 mb-5">Porcentagem das categorias nas despesas filtradas</p>
+        {/* Sidebar Breakdown of Spending Category weights and Member Breakdowns (4 columns span) */}
+        <div className="lg:col-span-4 space-y-6 print:hidden">
+          
+          {/* Family Group Member Breakdowns (Only visible if currentUser is in a family group) */}
+          {userGroup && filterScope === 'group' && (
+            <div className="bg-white p-6 rounded-2xl border border-gray-150/70 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <h4 className="text-base font-bold text-gray-900 tracking-tight">Finanças por Membro</h4>
+              </div>
+              <p className="text-xs text-gray-400 mb-5 leading-normal">
+                Participantes do grupo <span className="font-bold text-emerald-800">{userGroup.name}</span>
+              </p>
 
-          {categorySummary.length === 0 ? (
-            <div className="py-16 text-center text-gray-400 text-xs">
-              Nenhuma despesa para exibir peso proporcional.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {categorySummary.map((item, idx) => (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs font-semibold text-gray-700">
-                    <span className="truncate">{item.name}</span>
-                    <span className="text-gray-900 font-bold">{formatBRL(item.amount)}</span>
+              <div className="space-y-3.5">
+                {memberBreakdowns.map((member, idx) => (
+                  <div key={idx} className="p-4.5 bg-gray-50/70 hover:bg-emerald-50/20 border border-gray-200/50 rounded-2xl transition-all space-y-3 shadow-xs">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-bold text-gray-900 block truncate leading-tight">{member.name}</span>
+                        <span className="text-[10.5px] text-gray-400 font-medium block truncate mt-0.5">{member.email}</span>
+                      </div>
+                      <span className={`text-sm font-black whitespace-nowrap ${member.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {formatBRL(member.balance)}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-150 text-[11px]">
+                      <div>
+                        <span className="text-gray-400 block font-semibold uppercase tracking-wider text-[8.5px]">Recebido</span>
+                        <span className="text-emerald-600 font-extrabold font-mono text-xs">{formatBRL(member.incomes)}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-gray-400 block font-semibold uppercase tracking-wider text-[8.5px]">Gasto</span>
+                        <span className="text-rose-600 font-extrabold font-mono text-xs">{formatBRL(member.expenses)}</span>
+                      </div>
+                    </div>
                   </div>
-                  
-                  {/* Visual gauge */}
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all"
-                      style={{ 
-                        width: `${item.percentage}%`, 
-                        backgroundColor: item.color 
-                      }} 
-                    />
-                  </div>
-                  
-                  <div className="text-right text-[10px] text-gray-400 font-bold">
-                    {item.percentage.toFixed(1)}% do total gasto
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h4 className="text-base font-bold text-gray-900 mb-1">Pesos por Categoria</h4>
+            <p className="text-xs text-gray-400 mb-5">Porcentagem das categorias nas despesas filtradas</p>
+
+            {categorySummary.length === 0 ? (
+              <div className="py-16 text-center text-gray-400 text-xs">
+                Nenhuma despesa para exibir peso proporcional.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {categorySummary.map((item, idx) => (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex justify-between items-center text-xs font-semibold text-gray-700">
+                      <span className="truncate">{item.name}</span>
+                      <span className="text-gray-900 font-bold">{formatBRL(item.amount)}</span>
+                    </div>
+                    
+                    {/* Visual gauge */}
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all"
+                        style={{ 
+                          width: `${item.percentage}%`, 
+                          backgroundColor: item.color 
+                        }} 
+                      />
+                    </div>
+                    
+                    <div className="text-right text-[10px] text-gray-400 font-bold">
+                      {item.percentage.toFixed(1)}% do total gasto
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
