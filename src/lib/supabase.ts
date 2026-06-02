@@ -167,6 +167,21 @@ export async function deleteFixedExpenseDB(id: string) {
   if (error) console.error('Error deleting fixed expense from DB:', error);
 }
 
+export async function saveCategoryBudgetDB(categoryId: string, limitValue: number) {
+  if (!supabase) return;
+  const { error } = await supabase.from('category_budgets').upsert({
+    category_id: categoryId,
+    limit_value: limitValue
+  });
+  if (error) console.error('Error saving category budget to DB:', error);
+}
+
+export async function deleteCategoryBudgetDB(categoryId: string) {
+  if (!supabase) return;
+  const { error } = await supabase.from('category_budgets').delete().eq('category_id', categoryId);
+  if (error) console.error('Error deleting category budget from DB:', error);
+}
+
 // Full Synchronized Load
 export async function loadFullDBData() {
   if (!supabase) return null;
@@ -175,12 +190,14 @@ export async function loadFullDBData() {
       { data: dUsers, error: errUsers },
       { data: dCategories, error: errCategories },
       { data: dTransactions, error: errTransactions },
-      { data: dFixedExpenses, error: errFixedExpenses }
+      { data: dFixedExpenses, error: errFixedExpenses },
+      { data: dBudgets, error: errBudgets }
     ] = await Promise.all([
       supabase.from('users').select('*'),
       supabase.from('categories').select('*'),
       supabase.from('transactions').select('*'),
-      supabase.from('fixed_expenses').select('*')
+      supabase.from('fixed_expenses').select('*'),
+      supabase.from('category_budgets').select('*')
     ]);
 
     if (errUsers || errCategories || errTransactions || errFixedExpenses) {
@@ -192,12 +209,24 @@ export async function loadFullDBData() {
 
     const parsedUsers = (dUsers || []).map(mapFromDBUser);
 
+    const categoryBudgets: Record<string, number> = {};
+    if (!errBudgets && dBudgets) {
+      dBudgets.forEach((b: any) => {
+        const catId = b.category_id || b.categoryId;
+        const limitVal = Number(b.limit_value || b.limitValue || 0);
+        if (catId && limitVal > 0) {
+          categoryBudgets[catId] = limitVal;
+        }
+      });
+    }
+
     return {
       users: parsedUsers,
       categories: (dCategories || []).map(mapFromDBCategory),
       transactions: (dTransactions || []).map(mapFromDBTransaction),
       familyGroups: [],
-      fixedExpenses: (dFixedExpenses || []).map(mapFromDBFixedExpense)
+      fixedExpenses: (dFixedExpenses || []).map(mapFromDBFixedExpense),
+      categoryBudgets
     };
   } catch (err) {
     console.error('Failed to load data from Supabase backend. Working with local cache state.', err);

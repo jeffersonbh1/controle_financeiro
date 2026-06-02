@@ -13,7 +13,8 @@ import {
   ChevronRight, 
   Wallet,
   Calendar,
-  DollarSign
+  DollarSign,
+  Target
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'incomes', label: 'Lançar Receita', icon: PlusCircle, color: 'text-emerald-500' },
     { id: 'categories', label: 'Categorias', icon: Tags },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'budgets', label: 'Metas de Gastos', icon: Target },
     ...(isAdmin ? [{ id: 'users', label: 'Usuários do Sistema', icon: Users }] : []),
   ];
 

@@ -9,6 +9,7 @@ import { TransactionsView } from './components/TransactionsView';
 import { UsersView } from './components/UsersView';
 import { ReportsView } from './components/ReportsView';
 import { FixedExpensesView } from './components/FixedExpensesView';
+import { BudgetsView } from './components/BudgetsView';
 import { Menu, Wallet, LogOut, RefreshCw, Users, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -20,7 +21,9 @@ import {
   saveTransactionDB,
   deleteTransactionDB,
   saveFixedExpenseDB,
-  deleteFixedExpenseDB
+  deleteFixedExpenseDB,
+  saveCategoryBudgetDB,
+  deleteCategoryBudgetDB
 } from './lib/supabase';
 
 export default function App() {
@@ -113,6 +116,16 @@ export default function App() {
     ];
   });
 
+  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('financas_category_budgets');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error('Error parsing financas_category_budgets', e);
+      return {};
+    }
+  });
+
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -136,6 +149,10 @@ export default function App() {
   }, [fixedExpenses]);
 
   useEffect(() => {
+    localStorage.setItem('financas_category_budgets', JSON.stringify(categoryBudgets));
+  }, [categoryBudgets]);
+
+  useEffect(() => {
     if (currentUser) {
       localStorage.setItem('financas_current_user', JSON.stringify(currentUser));
     } else {
@@ -153,6 +170,9 @@ export default function App() {
         if (dbData.categories.length > 0) setCategories(dbData.categories);
         setTransactions(dbData.transactions);
         setFixedExpenses(dbData.fixedExpenses);
+        if (dbData.categoryBudgets && Object.keys(dbData.categoryBudgets).length > 0) {
+          setCategoryBudgets(dbData.categoryBudgets);
+        }
 
         const savedCurrentUserString = localStorage.getItem('financas_current_user');
         if (savedCurrentUserString) {
@@ -206,6 +226,23 @@ export default function App() {
     }
     setCategories(prev => prev.filter(c => c.id !== id));
     deleteCategoryDB(id);
+  };
+
+  const handleUpdateCategoryBudget = async (categoryId: string, limitValue: number) => {
+    setCategoryBudgets(prev => ({
+      ...prev,
+      [categoryId]: limitValue
+    }));
+    await saveCategoryBudgetDB(categoryId, limitValue);
+  };
+
+  const handleDeleteCategoryBudget = async (categoryId: string) => {
+    setCategoryBudgets(prev => {
+      const copy = { ...prev };
+      delete copy[categoryId];
+      return copy;
+    });
+    await deleteCategoryBudgetDB(categoryId);
   };
 
   const handleAddTransaction = (tx: Transaction) => {
@@ -375,6 +412,17 @@ export default function App() {
             users={users}
           />
         );
+      case 'budgets':
+        return (
+          <BudgetsView 
+            currentUser={currentUser}
+            categories={categories}
+            transactions={transactions}
+            categoryBudgets={categoryBudgets}
+            onUpdateCategoryBudget={handleUpdateCategoryBudget}
+            onDeleteCategoryBudget={handleDeleteCategoryBudget}
+          />
+        );
       case 'users':
         return (
           <UsersView 
@@ -401,7 +449,7 @@ export default function App() {
       case 'incomes': return 'Lançar Nova Receita';
       case 'categories': return 'Minhas Categorias';
       case 'reports': return 'Relatório Combinado';
-      case 'family-group': return 'Gerenciamento de Grupo Familiar';
+      case 'budgets': return 'Objetivos e Metas de Gastos';
       case 'users': return 'Acessos e Usuários';
       default: return '';
     }
@@ -535,7 +583,7 @@ export default function App() {
                   { id: 'incomes', label: 'Lançar Receita' },
                   { id: 'categories', label: 'Categorias' },
                   { id: 'reports', label: 'Relatórios' },
-                  { id: 'family-group', label: 'Grupo Familiar' },
+                  { id: 'budgets', label: 'Metas de Gastos' },
                   ...(currentUser?.role === 'admin' ? [{ id: 'users', label: 'Usuários do Sistema' }] : []),
                 ].map(item => (
                   <button
