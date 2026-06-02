@@ -22,7 +22,6 @@ interface FixedExpensesViewProps {
   categories: Category[];
   transactions: Transaction[];
   fixedExpenses: FixedExpense[];
-  familyGroups?: any[];
   users: User[];
   onAddFixedExpense: (expense: FixedExpense) => void;
   onDeleteFixedExpense: (id: string) => void;
@@ -35,7 +34,6 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
   categories,
   transactions,
   fixedExpenses,
-  familyGroups = [],
   users,
   onAddFixedExpense,
   onDeleteFixedExpense,
@@ -64,20 +62,10 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
     }).format(valueInCent);
   };
 
-  // Find user's active family group
-  const activeGroup = useMemo(() => {
-    return familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
-  }, [familyGroups, currentUser?.id]);
-
-  // Allowed userIds to filter fixed expenses
-  const allowedUserIds = useMemo(() => {
-    return activeGroup ? activeGroup.memberIds : [currentUser?.id || ''];
-  }, [activeGroup, currentUser?.id]);
-
-  // Filter fixed expenses by ownership or family group sharing
+  // Filter fixed expenses by ownership
   const filteredFixedExpenses = useMemo(() => {
-    return fixedExpenses.filter(fe => allowedUserIds.includes(fe.userId));
-  }, [fixedExpenses, allowedUserIds]);
+    return fixedExpenses.filter(fe => fe.userId === currentUser?.id);
+  }, [fixedExpenses, currentUser?.id]);
 
   // Available months list for selector
   const monthsList = [
@@ -340,7 +328,7 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
               Automático e Seguro
             </span>
             <span className="text-[10px] uppercase font-mono tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-              {activeGroup ? 'Grupo Familiar Vinculado' : 'Modo Pessoal'}
+              Modo Pessoal
             </span>
           </div>
         </div>

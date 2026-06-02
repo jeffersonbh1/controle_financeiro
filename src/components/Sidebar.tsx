@@ -12,7 +12,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Wallet,
-  Home,
   Calendar,
   DollarSign
 } from 'lucide-react';
@@ -45,7 +44,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'incomes', label: 'Lançar Receita', icon: PlusCircle, color: 'text-emerald-500' },
     { id: 'categories', label: 'Categorias', icon: Tags },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
-    { id: 'family-group', label: 'Grupo Familiar', icon: Home },
     ...(isAdmin ? [{ id: 'users', label: 'Usuários do Sistema', icon: Users }] : []),
   ];
 

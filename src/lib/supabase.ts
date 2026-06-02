@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Category, Transaction, FamilyGroup, FixedExpense } from '../types';
+import { User, Category, Transaction, FixedExpense } from '../types';
 
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
@@ -21,7 +21,6 @@ export function mapFromDBUser(row: any): User {
     phone: row.phone || '',
     role: row.role || 'user',
     password: row.password || '',
-    familyGroupId: row.family_group_id || row.familyGroupId || undefined,
   };
 }
 
@@ -33,36 +32,6 @@ export function mapToDBUser(user: User) {
     phone: user.phone || '',
     role: user.role,
     password: user.password || '',
-    family_group_id: user.familyGroupId || null,
-  };
-}
-
-// 2. Family Groups Mapping
-export function mapFromDBFamilyGroup(row: any): FamilyGroup {
-  let memberIds: string[] = [];
-  if (Array.isArray(row.member_ids)) {
-    memberIds = row.member_ids;
-  } else if (Array.isArray(row.memberIds)) {
-    memberIds = row.memberIds;
-  } else if (typeof row.member_ids === 'string') {
-    try {
-      memberIds = JSON.parse(row.member_ids);
-    } catch {
-      memberIds = [];
-    }
-  }
-  return {
-    id: row.id,
-    name: row.name || '',
-    memberIds,
-  };
-}
-
-export function mapToDBFamilyGroup(group: FamilyGroup) {
-  return {
-    id: group.id,
-    name: group.name,
-    member_ids: group.memberIds,
   };
 }
 
@@ -186,18 +155,6 @@ export async function deleteTransactionDB(id: string) {
   if (error) console.error('Error deleting transaction from DB:', error);
 }
 
-export async function saveFamilyGroupDB(group: FamilyGroup) {
-  if (!supabase) return;
-  const { error } = await supabase.from('family_groups').upsert(mapToDBFamilyGroup(group));
-  if (error) console.error('Error saving family group to DB:', error);
-}
-
-export async function deleteFamilyGroupDB(id: string) {
-  if (!supabase) return;
-  const { error } = await supabase.from('family_groups').delete().eq('id', id);
-  if (error) console.error('Error deleting family group from DB:', error);
-}
-
 export async function saveFixedExpenseDB(fe: FixedExpense) {
   if (!supabase) return;
   const { error } = await supabase.from('fixed_expenses').upsert(mapToDBFixedExpense(fe));
@@ -218,41 +175,28 @@ export async function loadFullDBData() {
       { data: dUsers, error: errUsers },
       { data: dCategories, error: errCategories },
       { data: dTransactions, error: errTransactions },
-      { data: dFamilyGroups, error: errFamilyGroups },
       { data: dFixedExpenses, error: errFixedExpenses }
     ] = await Promise.all([
       supabase.from('users').select('*'),
       supabase.from('categories').select('*'),
       supabase.from('transactions').select('*'),
-      supabase.from('family_groups').select('*'),
       supabase.from('fixed_expenses').select('*')
     ]);
 
-    if (errUsers || errCategories || errTransactions || errFamilyGroups || errFixedExpenses) {
+    if (errUsers || errCategories || errTransactions || errFixedExpenses) {
       console.warn('Some tables could not be loaded from Supabase. Falling back to local state.', {
-        errUsers, errCategories, errTransactions, errFamilyGroups, errFixedExpenses
+        errUsers, errCategories, errTransactions, errFixedExpenses
       });
       return null;
     }
 
     const parsedUsers = (dUsers || []).map(mapFromDBUser);
-    const parsedGroups = (dFamilyGroups || []).map(mapFromDBFamilyGroup);
-
-    // Dynamic enrichment: reconstruct group memberIds based on users' mapped familyGroupId
-    const enrichedGroups = parsedGroups.map(g => {
-      const usersInGroup = parsedUsers.filter(u => u.familyGroupId === g.id).map(u => u.id);
-      const uniqueMemberIds = Array.from(new Set([...(g.memberIds || []), ...usersInGroup]));
-      return {
-        ...g,
-        memberIds: uniqueMemberIds
-      };
-    });
 
     return {
       users: parsedUsers,
       categories: (dCategories || []).map(mapFromDBCategory),
       transactions: (dTransactions || []).map(mapFromDBTransaction),
-      familyGroups: enrichedGroups,
+      familyGroups: [],
       fixedExpenses: (dFixedExpenses || []).map(mapFromDBFixedExpense)
     };
   } catch (err) {

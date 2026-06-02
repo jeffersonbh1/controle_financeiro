@@ -7,13 +7,6 @@ export interface User {
   phone: string;
   role: UserRole;
   password?: string;
-  familyGroupId?: string; // Links to FamilyGroup.id
-}
-
-export interface FamilyGroup {
-  id: string;
-  name: string;
-  memberIds: string[]; // List of user IDs in this group
 }
 
 export interface Category {

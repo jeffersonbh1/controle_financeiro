@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { User, Category, Transaction, FamilyGroup, FixedExpense } from '../types';
+import { User, Category, Transaction, FixedExpense } from '../types';
 import { LucideIcon } from './LucideIcon';
 import { 
   TrendingUp, 
@@ -34,7 +34,6 @@ interface DashboardViewProps {
   categories: Category[];
   transactions: Transaction[];
   setActiveTab: (tab: string) => void;
-  familyGroups?: FamilyGroup[];
   users?: User[];
   fixedExpenses?: FixedExpense[];
 }
@@ -44,7 +43,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   categories,
   transactions,
   setActiveTab,
-  familyGroups = [],
   users = [],
   fixedExpenses = []
 }) => {
@@ -63,12 +61,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return Array.from(months).sort().reverse();
   }, [transactions]);
 
-  // Filter transactions by user AND month (co-owned by family group if active)
+  // Filter transactions by user AND month
   const userTransactions = useMemo(() => {
-    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
-    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
-    return transactions.filter(tx => allowedUserIds.includes(tx.userId));
-  }, [transactions, currentUser, familyGroups]);
+    return transactions.filter(tx => tx.userId === currentUser?.id);
+  }, [transactions, currentUser]);
 
   const filteredTransactions = useMemo(() => {
     return userTransactions.filter(tx => tx.date && tx.date.startsWith(selectedMonth));
@@ -76,24 +72,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Track pending programmed fixed expenses for checklist reminder
   const pendingFixedExpenses = useMemo(() => {
-    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
-    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
     return fixedExpenses.filter(fe => {
-      const isOwned = allowedUserIds.includes(fe.userId);
+      const isOwned = fe.userId === currentUser?.id;
       const isPaid = fe.paidMonths.includes(selectedMonth);
       return isOwned && !isPaid;
     });
-  }, [fixedExpenses, familyGroups, currentUser, selectedMonth]);
+  }, [fixedExpenses, currentUser, selectedMonth]);
 
   const pendingFixedTotal = useMemo(() => {
     return pendingFixedExpenses.reduce((sum, fe) => sum + fe.amount, 0);
   }, [pendingFixedExpenses]);
 
   const allFixedExpensesCount = useMemo(() => {
-    const group = familyGroups?.find(g => g.memberIds.includes(currentUser?.id || ''));
-    const allowedUserIds = group ? group.memberIds : [currentUser?.id || ''];
-    return fixedExpenses.filter(fe => allowedUserIds.includes(fe.userId)).length;
-  }, [fixedExpenses, familyGroups, currentUser]);
+    return fixedExpenses.filter(fe => fe.userId === currentUser?.id).length;
+  }, [fixedExpenses, currentUser]);
 
   // Calculate totals
   const totals = useMemo(() => {

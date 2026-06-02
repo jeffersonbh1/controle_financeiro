@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Category, Transaction, FamilyGroup, FixedExpense } from './types';
+import { User, Category, Transaction, FixedExpense } from './types';
 import { DEFAULT_USERS, DEFAULT_CATEGORIES, DEFAULT_TRANSACTIONS } from './mockData';
 import { LoginView } from './components/LoginView';
 import { Sidebar } from './components/Sidebar';
@@ -8,7 +8,6 @@ import { CategoriesView } from './components/CategoriesView';
 import { TransactionsView } from './components/TransactionsView';
 import { UsersView } from './components/UsersView';
 import { ReportsView } from './components/ReportsView';
-import { FamilyGroupsView } from './components/FamilyGroupsView';
 import { FixedExpensesView } from './components/FixedExpensesView';
 import { Menu, Wallet, LogOut, RefreshCw, Users, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,8 +19,6 @@ import {
   deleteCategoryDB,
   saveTransactionDB,
   deleteTransactionDB,
-  saveFamilyGroupDB,
-  deleteFamilyGroupDB,
   saveFixedExpenseDB,
   deleteFixedExpenseDB
 } from './lib/supabase';
@@ -66,16 +63,6 @@ export default function App() {
     } catch (e) {
       console.error('Error parsing financas_current_user', e);
       return null;
-    }
-  });
-
-  const [familyGroups, setFamilyGroups] = useState<FamilyGroup[]>(() => {
-    try {
-      const saved = localStorage.getItem('financas_family_groups');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error('Error parsing financas_family_groups', e);
-      return [];
     }
   });
 
@@ -145,10 +132,6 @@ export default function App() {
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('financas_family_groups', JSON.stringify(familyGroups));
-  }, [familyGroups]);
-
-  useEffect(() => {
     localStorage.setItem('financas_fixed_expenses', JSON.stringify(fixedExpenses));
   }, [fixedExpenses]);
 
@@ -169,7 +152,6 @@ export default function App() {
         if (dbData.users.length > 0) setUsers(dbData.users);
         if (dbData.categories.length > 0) setCategories(dbData.categories);
         setTransactions(dbData.transactions);
-        setFamilyGroups(dbData.familyGroups);
         setFixedExpenses(dbData.fixedExpenses);
 
         const savedCurrentUserString = localStorage.getItem('financas_current_user');
@@ -236,105 +218,6 @@ export default function App() {
     deleteTransactionDB(id);
   };
 
-  const handleAddFamilyGroup = (group: FamilyGroup) => {
-    setFamilyGroups(prev => [...prev, group]);
-    saveFamilyGroupDB(group);
-
-    // Update familyGroupId for members included in this group
-    if (group.memberIds.length > 0) {
-      setUsers(prevUsers => prevUsers.map(u => {
-        if (group.memberIds.includes(u.id)) {
-          const updatedUser = { ...u, familyGroupId: group.id };
-          saveUserDB(updatedUser);
-          if (currentUser && u.id === currentUser.id) {
-            setCurrentUser(updatedUser);
-          }
-          return updatedUser;
-        }
-        return u;
-      }));
-    }
-  };
-
-  const handleDeleteFamilyGroup = (id: string) => {
-    // Find the group to get its members first
-    const group = familyGroups.find(g => g.id === id);
-    if (group) {
-      // Clear familyGroupId for all members of this group
-      setUsers(prevUsers => prevUsers.map(u => {
-        if (group.memberIds.includes(u.id) || u.familyGroupId === id) {
-          const updatedUser = { ...u, familyGroupId: undefined };
-          saveUserDB(updatedUser);
-          if (currentUser && u.id === currentUser.id) {
-            setCurrentUser(updatedUser);
-          }
-          return updatedUser;
-        }
-        return u;
-      }));
-    }
-
-    setFamilyGroups(prev => prev.filter(g => g.id !== id));
-    deleteFamilyGroupDB(id);
-  };
-
-  const handleAddMemberToGroup = (groupId: string, userId: string) => {
-    // Update the groups
-    setFamilyGroups(prev => prev.map(g => {
-      if (g.id === groupId) {
-        const cleanPrevAndInclude = g.memberIds.includes(userId) ? g.memberIds : [...g.memberIds, userId];
-        const updated = { ...g, memberIds: cleanPrevAndInclude };
-        saveFamilyGroupDB(updated);
-        return updated;
-      }
-      const updatedIdList = g.memberIds.filter(id => id !== userId);
-      if (updatedIdList.length !== g.memberIds.length) {
-        const updated = { ...g, memberIds: updatedIdList };
-        saveFamilyGroupDB(updated);
-        return updated;
-      }
-      return g;
-    }));
-
-    // Update the user
-    setUsers(prevUsers => prevUsers.map(u => {
-      if (u.id === userId) {
-        const updatedUser = { ...u, familyGroupId: groupId };
-        saveUserDB(updatedUser);
-        if (currentUser && u.id === currentUser.id) {
-          setCurrentUser(updatedUser);
-        }
-        return updatedUser;
-      }
-      return u;
-    }));
-  };
-
-  const handleRemoveMemberFromGroup = (groupId: string, userId: string) => {
-    // Update the groups
-    setFamilyGroups(prev => prev.map(g => {
-      if (g.id === groupId) {
-        const updated = { ...g, memberIds: g.memberIds.filter(id => id !== userId) };
-        saveFamilyGroupDB(updated);
-        return updated;
-      }
-      return g;
-    }));
-
-    // Update the user
-    setUsers(prevUsers => prevUsers.map(u => {
-      if (u.id === userId) {
-        const updatedUser = { ...u, familyGroupId: undefined };
-        saveUserDB(updatedUser);
-        if (currentUser && u.id === currentUser.id) {
-          setCurrentUser(updatedUser);
-        }
-        return updatedUser;
-      }
-      return u;
-    }));
-  };
-
   const handleAddFixedExpense = (expense: FixedExpense) => {
     setFixedExpenses(prev => [...prev, expense]);
     saveFixedExpenseDB(expense);
@@ -366,7 +249,6 @@ export default function App() {
       setUsers(DEFAULT_USERS);
       setCategories(DEFAULT_CATEGORIES);
       setTransactions(DEFAULT_TRANSACTIONS);
-      setFamilyGroups([]);
       localStorage.removeItem('financas_fixed_expenses');
       const standardFixed = [
         {
@@ -434,7 +316,6 @@ export default function App() {
             categories={categories} 
             transactions={transactions} 
             setActiveTab={setActiveTab}
-            familyGroups={familyGroups}
             users={users}
             fixedExpenses={fixedExpenses}
           />
@@ -446,7 +327,6 @@ export default function App() {
             categories={categories}
             transactions={transactions}
             fixedExpenses={fixedExpenses}
-            familyGroups={familyGroups}
             users={users}
             onAddFixedExpense={handleAddFixedExpense}
             onDeleteFixedExpense={handleDeleteFixedExpense}
@@ -463,7 +343,6 @@ export default function App() {
             onAddTransaction={handleAddTransaction} 
             onDeleteTransaction={handleDeleteTransaction}
             initialType="expense"
-            familyGroups={familyGroups}
             users={users}
           />
         );
@@ -476,7 +355,6 @@ export default function App() {
             onAddTransaction={handleAddTransaction} 
             onDeleteTransaction={handleDeleteTransaction}
             initialType="income"
-            familyGroups={familyGroups}
             users={users}
           />
         );
@@ -494,20 +372,7 @@ export default function App() {
             categories={categories} 
             transactions={transactions} 
             currentUser={currentUser}
-            familyGroups={familyGroups}
             users={users}
-          />
-        );
-      case 'family-group':
-        return (
-          <FamilyGroupsView
-            currentUser={currentUser}
-            users={users}
-            familyGroups={familyGroups}
-            onAddFamilyGroup={handleAddFamilyGroup}
-            onDeleteFamilyGroup={handleDeleteFamilyGroup}
-            onAddMemberToGroup={handleAddMemberToGroup}
-            onRemoveMemberFromGroup={handleRemoveMemberFromGroup}
           />
         );
       case 'users':

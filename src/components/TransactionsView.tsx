@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { User, Category, Transaction, FamilyGroup } from '../types';
+import { User, Category, Transaction } from '../types';
 import { LucideIcon } from './LucideIcon';
 import { Plus, Trash2, PiggyBank, Receipt, DollarSign, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,7 +11,6 @@ interface TransactionsViewProps {
   onAddTransaction: (tx: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
   initialType?: 'expense' | 'income';
-  familyGroups?: FamilyGroup[];
   users?: User[];
 }
 
@@ -22,7 +21,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   onAddTransaction,
   onDeleteTransaction,
   initialType = 'expense',
-  familyGroups = [],
   users = []
 }) => {
   const [activeType, setActiveType] = useState<'expense' | 'income'>(initialType);
@@ -44,10 +42,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     }).format(valueInCent);
   };
 
-  const belongsToGroup = useMemo(() => {
-    return familyGroups.some(g => g.memberIds.includes(currentUser.id));
-  }, [familyGroups, currentUser.id]);
-
   // Filter categories by type
   const typeCategories = useMemo(() => {
     return categories.filter(cat => cat.type === activeType);
@@ -60,12 +54,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     setAlert(null);
   };
 
-  // Filter transactions owned by this user or family group members
+  // Filter transactions owned by this user
   const userTransactions = useMemo(() => {
-    const group = familyGroups.find(g => g.memberIds.includes(currentUser.id));
-    const allowedUserIds = group ? group.memberIds : [currentUser.id];
-    return transactions.filter(tx => allowedUserIds.includes(tx.userId));
-  }, [transactions, currentUser, familyGroups]);
+    return transactions.filter(tx => tx.userId === currentUser.id);
+  }, [transactions, currentUser.id]);
 
   const sortedTransactions = useMemo(() => {
     return [...userTransactions].sort((a, b) => b.date.localeCompare(a.date));
@@ -295,12 +287,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
         <div>
           <h3 className="text-base font-bold text-gray-900 mb-1">
-            {belongsToGroup ? 'Lançamentos do Grupo Familiar' : 'Seus Lançamentos Oficiais'}
+            Seus Lançamentos Oficais
           </h3>
           <p className="text-xs text-gray-400 mb-5 text-balance">
-            {belongsToGroup
-              ? 'Listagem consolidada de receitas e despesas compartilhadas pelo grupo familiar'
-              : 'Listagem completa de receitas e despesas registradas em sua conta'}
+            Listagem completa de receitas e despesas registradas em sua conta
           </p>
 
           {sortedTransactions.length === 0 ? (
@@ -313,7 +303,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               {sortedTransactions.map(tx => {
                 const isExpense = tx.type === 'expense';
                 const cat = categories.find(c => c.id === tx.categoryId);
-                const txUser = users.find(u => u.id === tx.userId);
 
                 return (
                   <div
@@ -322,11 +311,14 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     className="flex items-center justify-between p-3.5 bg-gray-50/50 hover:bg-gray-50 border border-gray-100 rounded-xl group transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                        isExpense 
-                          ? 'bg-rose-50 text-rose-500 border-rose-100' 
-                          : 'bg-emerald-50 text-emerald-500 border-emerald-100'
-                      }`}>
+                      <div 
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
+                        style={{
+                          backgroundColor: cat?.color ? `${cat.color}15` : (isExpense ? '#FFF1F2' : '#ECFDF5'),
+                          borderColor: cat?.color ? `${cat.color}30` : (isExpense ? '#FFE4E6' : '#D1FAE5'),
+                          color: cat?.color || (isExpense ? '#EF4444' : '#10B981')
+                        }}
+                      >
                         <LucideIcon name={cat?.icon || (isExpense ? 'MinusCircle' : 'PlusCircle')} size={16} />
                       </div>
                       <div className="min-w-0">
@@ -337,14 +329,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                           <span>{cat?.name || (isExpense ? 'Despesa' : 'Receita')}</span>
                           <span>•</span>
                           <span className="font-mono">{tx.date.split('-').reverse().join('/')}</span>
-                          {txUser && txUser.id !== currentUser.id && (
-                            <>
-                              <span>•</span>
-                              <span className="bg-blue-50 text-blue-700 font-bold border border-blue-100 rounded px-1.5 py-0.5 text-[9px] leading-tight">
-                                de {txUser.name.split(' ')[0]}
-                              </span>
-                            </>
-                          )}
                         </p>
                       </div>
                     </div>
