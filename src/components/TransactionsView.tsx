@@ -31,6 +31,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'desc-asc'>('date-desc');
 
+  React.useEffect(() => {
+    setActiveType(initialType);
+    setCategoryId('');
+    setAlert(null);
+  }, [initialType]);
+
   const formatAmountMask = (rawValue: string): string => {
     const clean = rawValue.replace(/\D/g, '');
     if (!clean) return '';
@@ -145,30 +151,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       {/* Transaction Addition Form */}
       <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
         <div>
-          {/* Tabs for choosing expense or income */}
-          <div className="grid grid-cols-2 p-1.5 bg-gray-50 rounded-2xl mb-6">
-            <button
-              onClick={() => handleTypeChange('expense')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeType === 'expense'
-                  ? 'bg-white shadow-sm text-rose-600'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Excluir / Despesas
-            </button>
-            <button
-              onClick={() => handleTypeChange('income')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeType === 'income'
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Adicionar / Receitas
-            </button>
-          </div>
-
           <div className="mb-4">
             <h3 className="text-base font-bold text-gray-900">
               {activeType === 'expense' ? 'Nova Despesa' : 'Nova Receita'}
@@ -346,7 +328,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               <p className="text-sm">Nenhum lançamento efetuado ou registrado.</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1.5">
               {sortedTransactions.map(tx => {
                 const isExpense = tx.type === 'expense';
                 const cat = categories.find(c => c.id === tx.categoryId);

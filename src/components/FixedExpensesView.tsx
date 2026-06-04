@@ -40,7 +40,12 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
   onToggleFixedExpensePaid,
   onAddTransaction,
 }) => {
-  const [selectedMonth, setSelectedMonth] = useState('2026-05'); // Default to May 2026 match
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`; // Default to dynamic current month (e.g. 2026-06)
+  });
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -423,7 +428,7 @@ export const FixedExpensesView: React.FC<FixedExpensesViewProps> = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 overflow-y-auto max-h-[500px] no-scrollbar">
+          <div className="space-y-3 overflow-y-auto max-h-[500px] custom-scrollbar pr-1.5">
             <AnimatePresence initial={false}>
               {filteredFixedExpenses.map(expense => {
                 const isPaid = expense.paidMonths.includes(selectedMonth);
