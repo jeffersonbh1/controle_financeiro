@@ -13,8 +13,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CalendarCheck,
-  Check
+  Check,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { 
   BarChart, 
   Bar, 
@@ -46,12 +49,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   users = [],
   fixedExpenses = []
 }) => {
+  // DB status check
+  const dbConnected = isSupabaseConfigured();
+
   // Filter state for month
-  const [selectedMonth, setSelectedMonth] = useState('2026-05'); // Default to May 2026 (per metadata current year is 2026)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`; // Default to dynamic current month (e.g. 2026-06)
+  });
 
   // List of available months based on transactions + current month
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    months.add(`${year}-${month}`);
     months.add('2026-05');
     transactions.forEach(tx => {
       if (tx.date) {
@@ -101,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return {
       income,
       expense,
-      balance: income - expense,
+      balance: expense - income, // O saldo restante deve ser despesas menos receitas
       savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0
     };
   }, [filteredTransactions]);
@@ -174,9 +189,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Top Welcome Control Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm shadow-gray-100/30">
         <div>
-          <h2 id="dashboard-hero-title" className="text-2xl font-bold text-gray-900 tracking-tight">
-            Olá, {currentUser?.name || 'Usuário'}! 👋
-          </h2>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 id="dashboard-hero-title" className="text-2xl font-bold text-gray-900 tracking-tight">
+              Olá, {currentUser?.name || 'Usuário'}! 👋
+            </h2>
+            {dbConnected ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
+                <Cloud size={11} className="text-emerald-500 animate-pulse" /> Banco de Dados Conectado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 border border-amber-100 rounded-lg text-[10px] font-bold text-amber-700 uppercase tracking-wide">
+                <CloudOff size={11} className="text-amber-500" /> Modo Cache Local
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             Aqui está a visão geral das suas finanças pessoais para o mês selecionado.
           </p>
@@ -222,12 +248,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <h3 id="metric-balance-value" className={`text-3xl font-extrabold tracking-tight ${totals.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <h3 id="metric-balance-value" className={`text-3xl font-extrabold tracking-tight ${totals.balance <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {formatBRL(totals.balance)}
             </h3>
-            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-              <PiggyBank size={14} className="text-slate-400" />
+            <p className="text-xs text-slate-400 mt-2 flex items-center flex-wrap gap-1 leading-relaxed">
+              <PiggyBank size={14} className="text-slate-400 inline" />
               Taxa de poupança: <span className="font-semibold text-emerald-400">{totals.savingsRate.toFixed(1)}%</span>
+              <span className="mx-1 opacity-30">|</span>
+              <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider inline-flex ${totals.balance <= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {totals.balance <= 0 ? 'Superávit' : 'Déficit'} (Despesas - Receitas)
+              </span>
             </p>
           </div>
         </div>
@@ -239,7 +269,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 tracking-wider uppercase">
-              Receitas de {selectedMonth.split('-')[1]}/2026
+              Receitas de {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
             </span>
             <div className="h-10 w-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
               <TrendingUp size={20} />
@@ -262,7 +292,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 tracking-wider uppercase">
-              Despesas de {selectedMonth.split('-')[1]}/2026
+              Despesas de {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
             </span>
             <div className="h-10 w-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
               <TrendingDown size={20} />
@@ -293,7 +323,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     Despesas Fixas Pendentes ({pendingFixedExpenses.length})
                   </h4>
                   <p className="text-xs text-amber-800 leading-relaxed mt-1 font-medium">
-                    Detectamos <span className="font-bold text-amber-950">{pendingFixedExpenses.length}</span> {pendingFixedExpenses.length === 1 ? 'despesa' : 'despesas'} pendente(s) para {selectedMonth.split('-')[1]}/2026, somando <span className="font-bold text-amber-950">{formatBRL(pendingFixedTotal)}</span>. Evite multas e juros por atraso!
+                    Detectamos <span className="font-bold text-amber-950">{pendingFixedExpenses.length}</span> {pendingFixedExpenses.length === 1 ? 'despesa' : 'despesas'} pendente(s) para {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}, somando <span className="font-bold text-amber-950">{formatBRL(pendingFixedTotal)}</span>. Evite multas e juros por atraso!
                   </p>
                 </div>
               </div>
@@ -317,7 +347,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     Tudo em Dia por Aqui! 🎉
                   </h4>
                   <p className="text-xs text-emerald-800 leading-relaxed mt-1 font-medium">
-                    Nenhuma despesa fixa pendente encontrada para a competência de {selectedMonth.split('-')[1]}/2026. Todas as contas foram marcadas como pagas e lançadas!
+                    Nenhuma despesa fixa pendente encontrada para a competência de {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}. Todas as contas foram marcadas como pagas e lançadas!
                   </p>
                 </div>
               </div>
@@ -462,7 +492,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {filteredTransactions.length === 0 ? (
           <div className="py-10 text-center text-gray-400 flex flex-col items-center gap-2">
             <FileText size={32} className="text-gray-300" />
-            <p className="text-sm">Nenhum lançamento foi efetuado em {selectedMonth.split('-')[1]}/2026.</p>
+            <p className="text-sm">Nenhum lançamento foi efetuado em {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

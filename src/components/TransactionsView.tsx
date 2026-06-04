@@ -29,6 +29,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10)); // Default to today in YYYY-MM-DD
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'desc-asc'>('date-desc');
 
   const formatAmountMask = (rawValue: string): string => {
     const clean = rawValue.replace(/\D/g, '');
@@ -54,14 +55,33 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     setAlert(null);
   };
 
-  // Filter transactions owned by this user
-  const userTransactions = useMemo(() => {
-    return transactions.filter(tx => tx.userId === currentUser.id);
-  }, [transactions, currentUser.id]);
-
+  // Filter and sort transactions owned by this user and matching the active type
   const sortedTransactions = useMemo(() => {
-    return [...userTransactions].sort((a, b) => b.date.localeCompare(a.date));
-  }, [userTransactions]);
+    const filtered = transactions.filter(
+      tx => tx.userId === currentUser.id && tx.type === activeType
+    );
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'date-desc') {
+        const dateCompare = b.date.localeCompare(a.date);
+        return dateCompare !== 0 ? dateCompare : b.id.localeCompare(a.id);
+      }
+      if (sortBy === 'date-asc') {
+        const dateCompare = a.date.localeCompare(b.date);
+        return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
+      }
+      if (sortBy === 'amount-desc') {
+        return b.amount - a.amount;
+      }
+      if (sortBy === 'amount-asc') {
+        return a.amount - b.amount;
+      }
+      if (sortBy === 'desc-asc') {
+        return a.description.localeCompare(b.description);
+      }
+      return 0;
+    });
+  }, [transactions, currentUser.id, activeType, sortBy]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,12 +306,39 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       {/* Transactions History Overview */}
       <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
         <div>
-          <h3 className="text-base font-bold text-gray-900 mb-1">
-            Seus Lançamentos Oficais
-          </h3>
-          <p className="text-xs text-gray-400 mb-5 text-balance">
-            Listagem completa de receitas e despesas registradas em sua conta
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-gray-900">
+                {activeType === 'expense' ? 'Suas Despesas Lançadas' : 'Suas Receitas Lançadas'}
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {activeType === 'expense' 
+                  ? 'Listagem organizada de todas as saídas registradas na sua conta' 
+                  : 'Listagem organizada de todas as entradas registradas na sua conta'}
+              </p>
+            </div>
+            
+            {/* Sort Dropdown Selector */}
+            <div className="flex items-center gap-1.5 self-start sm:self-center">
+              <span className="text-xs font-semibold text-gray-400">Ordenar:</span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e: any) => setSortBy(e.target.value)}
+                  className="pl-2 px-7 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 focus:border-blue-500 rounded-xl text-xs font-bold text-gray-700 outline-none cursor-pointer appearance-none transition-all focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="date-desc">Mais Recentes</option>
+                  <option value="date-asc">Mais Antigas</option>
+                  <option value="amount-desc">Maior Valor</option>
+                  <option value="amount-asc">Menor Valor</option>
+                  <option value="desc-asc">Descrição (A-Z)</option>
+                </select>
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </span>
+              </div>
+            </div>
+          </div>
 
           {sortedTransactions.length === 0 ? (
             <div className="py-24 text-center text-gray-400">
